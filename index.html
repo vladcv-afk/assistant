@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мой Персональный Ассистент</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+        }
+        #chat-container {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            height: 400px;
+            overflow-y: auto;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        #input-area {
+            display: flex;
+            gap: 10px;
+        }
+        #user-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 16px;
+            outline: none;
+            transition: border 0.3s;
+        }
+        #user-input:focus {
+            border-color: #3498db;
+        }
+        button {
+            padding: 12px 20px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .user-message {
+            margin: 10px 0;
+            text-align: right;
+        }
+        .user-message span {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 18px 18px 0 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .assistant-message {
+            margin: 10px 0;
+            text-align: left;
+        }
+        .assistant-message span {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #ecf0f1;
+            color: #333;
+            border-radius: 18px 18px 18px 0;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .typing-indicator {
+            display: inline-block;
+            padding: 10px 15px;
+            background-color: #ecf0f1;
+            border-radius: 18px 18px 18px 0;
+        }
+        .typing-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #7f8c8d;
+            margin: 0 2px;
+            animation: typingAnimation 1.4s infinite ease-in-out;
+        }
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+        @keyframes typingAnimation {
+            0%, 60%, 100% { transform: translateY(0); }
+            30% { transform: translateY(-5px); }
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Мой Персональный Ассистент</h1>
+    <div id="chat-container"></div>
+    <div id="input-area">
+        <input type="text" id="user-input" placeholder="Напишите сообщение...">
+        <button onclick="sendMessage()">Отправить</button>
+    </div>
+
+    <script>
+        // Расширенная база знаний ассистента
+        const knowledgeBase = {
+            "привет": ["Привет! 👋 Как я могу вам помочь?", "Здравствуйте! Чем могу быть полезен?", "Приветствую! Что вас интересует?"],
+            "как дела": ["У меня всё отлично! А у вас?", "Как у цифрового ассистента, у меня нет проблем! 😊 А у вас?", "Прекрасно! Готов вам помочь. А у вас как дела?"],
+            "что ты умеешь": [
+                "Я могу отвечать на вопросы, подсказывать время и дату, а также поддерживать беседу.",
+                "Мои возможности: \n- Отвечать на вопросы \n- Сообщать текущее время \n- Поддерживать простой диалог \n- Давать полезную информацию"
+            ],
+            "пока": ["До свидания! Было приятно пообщаться.", "Пока! Возвращайтесь, если будут вопросы.", "До встречи! 👋"],
+            "спасибо": ["Пожалуйста! Всегда рад помочь.", "Не за что! Обращайтесь ещё.", "Рад был помочь! 😊"],
+            "время": [`Сейчас точно ${new Date().toLocaleTimeString('ru-RU')}`],
+            "дата": [`Сегодня ${new Date().toLocaleDateString('ru-RU', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`],
+            "помощь": [
+                "Доступные команды: \n• Привет \n• Как дела \n• Что ты умеешь \n• Время \n• Дата \n• Помощь \n• Пока",
+                "Я понимаю такие запросы: о времени, дате, моих возможностях, а также могу поддержать беседу."
+            ],
+            "кто ты": [
+                "Я ваш персональный цифровой ассистент, созданный на JavaScript.",
+                "Я - программа-ассистент, написанная на HTML, CSS и JavaScript, чтобы помогать вам с простыми задачами."
+            ]
+        };
+
+        // Функция для отправки сообщения
+        function sendMessage() {
+            const userInput = document.getElementById('user-input');
+            const message = userInput.value.trim();
+            
+            if (message === '') return;
+            
+            // Добавляем сообщение пользователя в чат
+            addMessageToChat(message, 'user-message');
+            
+            // Очищаем поле ввода
+            userInput.value = '';
+            
+            // Показываем индикатор набора сообщения
+            showTypingIndicator();
+            
+            // Ищем ответ в базе знаний
+            setTimeout(() => {
+                hideTypingIndicator();
+                let response = getAssistantResponse(message.toLowerCase());
+                addMessageToChat(response, 'assistant-message');
+            }, 1000 + Math.random() * 2000); // Случайная задержка для реалистичности
+        }
+        
+        // Функция для получения ответа ассистента
+        function getAssistantResponse(message) {
+            // Проверяем специальные команды
+            if (message.includes('время') || message.includes('который час')) {
+                return knowledgeBase["время"][0];
+            }
+            
+            if (message.includes('дата') || message.includes('число') || message.includes('день')) {
+                return knowledgeBase["дата"][0];
+            }
+            
+            // Ищем совпадения в базе знаний
+            for (const key in knowledgeBase) {
+                if (message.includes(key)) {
+                    const responses = knowledgeBase[key];
+                    return responses[Math.floor(Math.random() * responses.length)]; // Случайный вариант ответа
+                }
+            }
+            
+            // Если не найдено совпадений
+            const defaultResponses = [
+                "Извините, я не совсем понял ваш вопрос. Можете переформулировать?",
+                "Пока я не могу ответить на этот вопрос. Попробуйте задать его по-другому.",
+                "Мои возможности ограничены, я не могу ответить на этот запрос.",
+                "Я ещё учусь. Можете задать другой вопрос?"
+            ];
+            return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
+        }
+        
+        // Функция для добавления сообщения в чат
+        function addMessageToChat(text, className) {
+            const chatContainer = document.getElementById('chat-container');
+            const messageElement = document.createElement('div');
+            messageElement.classList.add(className);
+            
+            const messageContent = document.createElement('span');
+            messageContent.textContent = text;
+            
+            messageElement.appendChild(messageContent);
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Функция для показа индикатора набора сообщения
+        function showTypingIndicator() {
+            const chatContainer = document.getElementById('chat-container');
+            const indicator = document.createElement('div');
+            indicator.classList.add('assistant-message');
+            indicator.id = 'typing-indicator';
+            
+            const indicatorContent = document.createElement('div');
+            indicatorContent.classList.add('typing-indicator');
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('span');
+                dot.classList.add('typing-dot');
+                indicatorContent.appendChild(dot);
+            }
+            
+            indicator.appendChild(indicatorContent);
+            chatContainer.appendChild(indicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // Функция для скрытия индикатора набора сообщения
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+        
+        // Обработка нажатия Enter в поле ввода
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        // Приветственное сообщение
+        setTimeout(() => {
+            addMessageToChat("Привет! Я ваш персональный ассистент. 😊 Чем могу помочь?", 'assistant-message');
+        }, 800);
+    </script>
+</body>
+</html>
