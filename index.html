@@ -3,11 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎙️ Голосовой Ассистент</title>
+    <title>🤖 Умный Ассистент</title>
     <style>
         :root {
             --primary-color: #6c5ce7;
             --secondary-color: #a29bfe;
+            --dark-color: #2d3436;
+            --light-color: #f5f6fa;
             --user-color: #00b894;
             --assistant-color: #0984e3;
             --error-color: #d63031;
@@ -17,10 +19,10 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
             margin: 0;
-            padding: 20px;
+            padding: 0;
             min-height: 100vh;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
         }
         
@@ -34,6 +36,7 @@
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            margin: 20px 0;
         }
         
         .header {
@@ -44,15 +47,21 @@
             font-size: 1.5rem;
             font-weight: bold;
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
+        }
+        
+        .status {
+            font-size: 0.9rem;
+            font-weight: normal;
+            margin-top: 5px;
         }
         
         .chat-container {
             flex: 1;
             padding: 20px;
             overflow-y: auto;
-            background-color: #f8f9fa;
+            background-color: var(--light-color);
         }
         
         .message {
@@ -63,6 +72,7 @@
             line-height: 1.4;
             position: relative;
             animation: fadeIn 0.3s ease-out;
+            word-wrap: break-word;
         }
         
         @keyframes fadeIn {
@@ -79,10 +89,17 @@
         
         .assistant-message {
             background-color: white;
-            color: #2d3436;
+            color: var(--dark-color);
             margin-right: auto;
             border-bottom-left-radius: 5px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .error-message {
+            background-color: var(--error-color);
+            color: white;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
         }
         
         .input-area {
@@ -90,6 +107,7 @@
             padding: 15px;
             background-color: white;
             border-top: 1px solid #eee;
+            align-items: center;
         }
         
         #user-input {
@@ -119,6 +137,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 1.2rem;
         }
         
         #send-button:hover, #voice-button:hover {
@@ -132,9 +151,9 @@
         }
         
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(214, 48, 49, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(214, 48, 49, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(214, 48, 49, 0); }
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
         }
         
         .typing-indicator {
@@ -171,11 +190,51 @@
             text-align: right;
         }
         
-        .status {
-            font-size: 0.9rem;
-            padding: 5px 10px;
-            background-color: rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
+        .commands-btn {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            margin: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background-color 0.3s;
+        }
+        
+        .commands-btn:hover {
+            background-color: var(--primary-color);
+        }
+        
+        .commands-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                height: 95vh;
+                margin: 10px 0;
+                border-radius: 10px;
+            }
+            
+            .message {
+                max-width: 90%;
+                padding: 10px 15px;
+                font-size: 0.95rem;
+            }
+            
+            #user-input {
+                padding: 10px 15px;
+            }
+            
+            #send-button, #voice-button {
+                width: 45px;
+                height: 45px;
+                font-size: 1rem;
+            }
         }
     </style>
 </head>
@@ -184,6 +243,12 @@
         <div class="header">
             <div>🎙️ Голосовой Ассистент</div>
             <div class="status" id="status">Готов к работе</div>
+            <div class="commands-container" id="quick-commands">
+                <button class="commands-btn" data-command="привет">Привет</button>
+                <button class="commands-btn" data-command="время">Время</button>
+                <button class="commands-btn" data-command="дата">Дата</button>
+                <button class="commands-btn" data-command="помощь">Помощь</button>
+            </div>
         </div>
         <div class="chat-container" id="chat-container"></div>
         <div class="input-area">
@@ -194,63 +259,223 @@
     </div>
 
     <script>
-        // Расширенная база знаний
+        // Расширенная база знаний ассистента
         const knowledgeBase = {
             "привет": [
-                "Привет! Я ваш голосовой помощник. Можете говорить со мной!",
-                "Здравствуйте! Готов вас слушать.",
-                "Приветствую! Нажмите на микрофон или пишите сообщения."
+                "Привет! 👋 Я ваш цифровой помощник. Чем могу помочь?",
+                "Здравствуйте! Рад вас видеть. Как ваши дела?",
+                "Приветствую! Готов ответить на ваши вопросы."
             ],
-            // ... (остальная база знаний из предыдущего примера)
+            "как дела": [
+                "У меня всё отлично! Я всего лишь программа, но работаю без сбоев. 😊 А у вас?",
+                "Как у виртуального ассистента - прекрасно! А как ваши дела?",
+                "Все системы функционируют нормально. Готов к работе! А у вас как настроение?"
+            ],
+            "что ты умеешь": [
+                "Я могу:\n• Отвечать на вопросы\n• Подсказывать время и дату\n• Давать полезные советы\n• Поддерживать беседу\n• Рассказывать интересные факты\n• Делать простые вычисления\n• Конвертировать единицы измерения",
+                "Мои функции:\n- Информационная помощь\n- Ответы на общие вопросы\n- Математические расчеты\n- Конвертация величин\n- И многое другое!"
+            ],
+            "пока": [
+                "До свидания! Буду рад помочь вам снова.",
+                "Пока! Возвращайтесь, если появятся вопросы.",
+                "До встречи! Если что-то понадобится - я здесь."
+            ],
+            "спасибо": [
+                "Всегда пожалуйста! Обращайтесь ещё.",
+                "Рад был помочь! 😊",
+                "Не стоит благодарности! Это моя работа."
+            ],
+            "время": [
+                `Текущее время: ${new Date().toLocaleTimeString('ru-RU')}`,
+                `Сейчас точно ${new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'})}`,
+                `Мои часы показывают: ${new Date().toLocaleTimeString('ru-RU')}`
+            ],
+            "дата": [
+                `Сегодня: ${new Date().toLocaleDateString('ru-RU', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}`,
+                `Текущая дата: ${new Date().toLocaleDateString('ru-RU')}`,
+                `Календарь показывает: ${new Date().toLocaleDateString('ru-RU', {day: 'numeric', month: 'long', year: 'numeric'})}`
+            ],
+            "помощь": [
+                "Доступные команды:\n• Привет/Здравствуйте\n• Как дела\n• Что ты умеешь\n• Время/Который час\n• Дата/Какое число\n• Расскажи факт\n• Посчитай [выражение]\n• Конвертируй [величины]\n• Пока/До свидания\n• Совет/Подскажи совет\n• Шутка/Расскажи шутку",
+                "Я понимаю:\n- Вопросы о времени и дате\n- Математические выражения\n- Запросы о моих возможностях\n- Общие вопросы\n- Просьбы о помощи\n- Запросы фактов и советов"
+            ],
+            "кто ты": [
+                "Я - ваш виртуальный помощник, созданный на HTML, CSS и JavaScript.",
+                "Я искусственный интеллект, запрограммированный помогать вам с различными задачами.",
+                "Цифровой ассистент, готовый ответить на ваши вопросы и помочь с различными задачами."
+            ],
+            "расскажи факт": [
+                "Знаете ли вы, что мед - единственный продукт, который не портится? Археологи находили мед в египетских гробницах возрастом 3000 лет, и он был всё ещё съедобен!",
+                "Интересный факт: сердце голубого кита настолько большое, что человек может проплыть через его артерии.",
+                "Факт: бананы - это ягоды, а клубника - нет! С ботанической точки зрения, клубника - это ложная ягода.",
+                "Факт: в человеческом теле достаточно железа, чтобы сделать гвоздь длиной 7,5 см.",
+                "Факт: крокодилы не могут высовывать язык - он прикреплен к нижней челюсти."
+            ],
+            "погода": [
+                "К сожалению, я не могу получить актуальные данные о погоде. Для этого нужно подключить специальный API.",
+                "Я пока не умею показывать погоду, но могу подсказать, как это сделать в интернете.",
+                "Для информации о погоде попробуйте посмотреть на специализированных сайтах или в приложениях."
+            ],
+            "совет": [
+                "Вот полезный совет: делайте перерывы каждые 45-50 минут работы за компьютером - это поможет сохранить продуктивность.",
+                "Совет дня: начинайте утро со стакана воды - это помогает организму проснуться.",
+                "Жизненный совет: никогда не откладывайте на завтра то, что можно сделать сегодня.",
+                "Совет по продуктивности: используйте технику Pomodoro - 25 минут работы, 5 минут отдыха.",
+                "Финансовый совет: откладывайте хотя бы 10% от каждого дохода."
+            ],
+            "шутка": [
+                "Почему программист всегда путает Хэллоуин и Рождество?\nПотому что Oct 31 == Dec 25!",
+                "Как программисты называют ошибку, которую невозможно найти?\nОсобенность!",
+                "Программист звонит в техподдержку:\n- У меня проблема...\n- Нет, у вас проблема, а у меня работа!",
+                "Почему программисты так плохо паркуются?\nПотому что они всегда ищут идеальное место!",
+                "Какой язык программирования самый музыкальный?\nJavaScript - потому что в нем есть скрипты!"
+            ],
+            "новости": [
+                "Я не имею доступа к текущим новостям, но вы можете проверить последние события на новостных сайтах.",
+                "Как виртуальный ассистент, я не получаю новости в реальном времени.",
+                "Для актуальных новостей рекомендую посетить проверенные новостные порталы."
+            ],
+            "музыка": [
+                "Я не могу воспроизводить музыку, но могу порекомендовать популярные музыкальные сервисы: Spotify, Яндекс.Музыка, Apple Music.",
+                "К сожалению, я не умею включать музыку. Но вы можете попробовать музыкальные стриминговые сервисы.",
+                "Для прослушивания музыки попробуйте специализированные приложения."
+            ],
+            "фильм": [
+                "Хорошие фильмы для просмотра: 'Начало', 'Интерстеллар', 'Зеленая книга', 'Паразиты'.",
+                "Рекомендую посмотреть: '1+1', 'Достать ножи', 'Бегущий по лезвию 2049'.",
+                "Из последних хороших фильмов: 'Оппенгеймер', 'Дюна', 'Барби'."
+            ],
+            "книга": [
+                "Рекомендую почитать: 'Атомные привычки' Джеймса Клира, '7 навыков высокоэффективных людей' Стивена Кови.",
+                "Хорошие книги: '1984' Джорджа Оруэлла, 'Мастер и Маргарита' Булгакова, 'Три товарища' Ремарка.",
+                "Советую обратить внимание на: 'Sapiens' Юваля Ноя Харари, 'Тонкое искусство пофигизма' Марка Мэнсона."
+            ],
+            "посчитай": [
+                (expression) => {
+                    try {
+                        // Безопасная проверка математического выражения
+                        const sanitized = expression.replace(/[^-()\d/*+.]/g, '');
+                        const result = eval(sanitized);
+                        return `Результат: ${result}`;
+                    } catch (e) {
+                        return "Не могу вычислить это выражение. Пожалуйста, укажите простое математическое выражение, например: 2+2*3";
+                    }
+                }
+            ],
+            "конвертируй": [
+                (query) => {
+                    const parts = query.split(' ');
+                    if (parts.length < 4) return "Формат: конвертируй [число] [из единиц] в [единицы], например: конвертируй 10 метров в футы";
+                    
+                    const value = parseFloat(parts[1]);
+                    if (isNaN(value)) return "Пожалуйста, укажите корректное число для конвертации";
+                    
+                    const fromUnit = parts[2].toLowerCase();
+                    const toUnit = parts[4].toLowerCase();
+                    
+                    // Простые конвертации
+                    const conversions = {
+                        'метр': { 'фут': 3.28084, 'дюйм': 39.3701, 'ярд': 1.09361, 'сантиметр': 100 },
+                        'фут': { 'метр': 0.3048, 'дюйм': 12, 'ярд': 0.333333, 'сантиметр': 30.48 },
+                        'градус': { 'радиан': (val) => val * Math.PI / 180, 'градус': (val) => val },
+                        'радиан': { 'градус': (val) => val * 180 / Math.PI, 'радиан': (val) => val },
+                        'килограмм': { 'фунт': 2.20462, 'грамм': 1000, 'унция': 35.274 },
+                        'фунт': { 'килограмм': 0.453592, 'грамм': 453.592, 'унция': 16 }
+                    };
+                    
+                    if (conversions[fromUnit] && conversions[fromUnit][toUnit]) {
+                        const factor = conversions[fromUnit][toUnit];
+                        const result = typeof factor === 'function' ? factor(value) : value * factor;
+                        return `${value} ${fromUnit} = ${result.toFixed(2)} ${toUnit}`;
+                    } else {
+                        return `Не могу конвертировать из ${fromUnit} в ${toUnit}. Поддерживаемые единицы: метр, фут, градус, радиан, килограмм, фунт`;
+                    }
+                }
+            ]
         };
 
         // Инициализация SpeechRecognition
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ru-RU';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+        let recognition;
+        
+        try {
+            recognition = new SpeechRecognition();
+            recognition.lang = 'ru-RU';
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+        } catch (e) {
+            console.error("Браузер не поддерживает распознавание речи", e);
+        }
 
         // Инициализация SpeechSynthesis
         const synth = window.speechSynthesis;
         const utterance = new SpeechSynthesisUtterance();
         utterance.lang = 'ru-RU';
         utterance.rate = 1.0;
+        utterance.pitch = 1.0;
 
         // Элементы интерфейса
         const voiceButton = document.getElementById('voice-button');
         const statusElement = document.getElementById('status');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const chatContainer = document.getElementById('chat-container');
+        const quickCommands = document.getElementById('quick-commands');
+        
         let isListening = false;
+        let lastMessageTime = 0;
+
+        // Проверка поддержки браузером
+        function checkCompatibility() {
+            if (!recognition) {
+                statusElement.textContent = "Голосовой ввод не поддерживается";
+                voiceButton.disabled = true;
+                voiceButton.title = "Ваш браузер не поддерживает эту функцию";
+            }
+            
+            if (!synth) {
+                statusElement.textContent = "Голосовой вывод не поддерживается";
+            }
+        }
 
         // Обработчики для голосового ввода
-        recognition.onstart = () => {
-            isListening = true;
-            voiceButton.classList.add('listening');
-            statusElement.textContent = "Слушаю...";
-        };
+        if (recognition) {
+            recognition.onstart = () => {
+                isListening = true;
+                voiceButton.classList.add('listening');
+                statusElement.textContent = "Слушаю...";
+                userInput.placeholder = "Говорите сейчас...";
+            };
 
-        recognition.onend = () => {
-            isListening = false;
-            voiceButton.classList.remove('listening');
-            statusElement.textContent = "Готов к работе";
-        };
-
-        recognition.onresult = (event) => {
-            const speechResult = event.results[0][0].transcript;
-            document.getElementById('user-input').value = speechResult;
-            sendMessage();
-        };
-
-        recognition.onerror = (event) => {
-            console.error('Ошибка распознавания:', event.error);
-            statusElement.textContent = "Ошибка: " + event.error;
-            setTimeout(() => {
+            recognition.onend = () => {
+                isListening = false;
+                voiceButton.classList.remove('listening');
                 statusElement.textContent = "Готов к работе";
-            }, 3000);
-        };
+                userInput.placeholder = "Напишите или скажите сообщение...";
+            };
+
+            recognition.onresult = (event) => {
+                const speechResult = event.results[0][0].transcript;
+                userInput.value = speechResult;
+                processUserInput(speechResult);
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Ошибка распознавания:', event.error);
+                statusElement.textContent = "Ошибка: " + event.error;
+                setTimeout(() => {
+                    statusElement.textContent = "Готов к работе";
+                }, 3000);
+            };
+        }
 
         // Обработчик кнопки микрофона
         voiceButton.addEventListener('click', () => {
+            if (!recognition) {
+                addMessageToChat("Голосовой ввод не поддерживается в вашем браузере", 'assistant-message');
+                return;
+            }
+
             if (isListening) {
                 recognition.stop();
             } else {
@@ -259,69 +484,176 @@
                 } catch (e) {
                     statusElement.textContent = "Ошибка доступа к микрофону";
                     console.error("Ошибка:", e);
+                    addMessageToChat("Не удалось получить доступ к микрофону. Проверьте разрешения браузера.", 'error-message');
                 }
             }
         });
 
         // Функция озвучивания текста
         function speak(text) {
+            if (!synth) {
+                console.log("Голосовой вывод не поддерживается");
+                return;
+            }
+            
+            // Отменяем текущее воспроизведение, если есть
+            synth.cancel();
+            
             utterance.text = text;
             synth.speak(utterance);
         }
 
-        // Модифицированная функция отправки сообщения
-        function sendMessage() {
-            const userInput = document.getElementById('user-input');
-            const message = userInput.value.trim();
+        // Обработка пользовательского ввода
+        function processUserInput(message) {
+            if (!message.trim()) return;
             
-            if (message === '') return;
-            
+            // Добавляем сообщение пользователя
             addMessageToChat(message, 'user-message');
-            userInput.value = '';
+            
+            // Показываем индикатор набора
             showTypingIndicator();
             
+            // Имитируем задержку обработки
             setTimeout(() => {
                 hideTypingIndicator();
-                let response = getAssistantResponse(message.toLowerCase());
-                addMessageToChat(response, 'assistant-message');
-                speak(response); // Озвучиваем ответ
+                try {
+                    const response = getAssistantResponse(message.toLowerCase());
+                    addMessageToChat(response, 'assistant-message');
+                    speak(response);
+                } catch (e) {
+                    console.error("Ошибка обработки запроса:", e);
+                    addMessageToChat("Произошла ошибка при обработке вашего запроса", 'error-message');
+                }
             }, 1000 + Math.random() * 1500);
         }
 
-        // ... (остальные функции из предыдущего примера: getAssistantResponse, addMessageToChat и т.д.)
-
-        // Проверка поддержки браузером
-        function checkCompatibility() {
-            if (!SpeechRecognition) {
-                statusElement.textContent = "Ваш браузер не поддерживает голосовой ввод";
-                voiceButton.disabled = true;
+        // Функция для получения ответа ассистента
+        function getAssistantResponse(message) {
+            // Проверяем специальные команды с параметрами
+            if (message.startsWith("посчитай") && message.length > 8) {
+                const expression = message.substring(8).trim();
+                const calculator = knowledgeBase["посчитай"][0];
+                return calculator(expression);
             }
             
-            if (!synth) {
-                statusElement.textContent = "Ваш браузер не поддерживает голосовой вывод";
+            if (message.startsWith("конвертируй") && message.length > 11) {
+                const query = message.substring(11).trim();
+                const converter = knowledgeBase["конвертируй"][0];
+                return converter(query);
+            }
+            
+            // Проверяем обычные команды
+            for (const key in knowledgeBase) {
+                if (message.includes(key)) {
+                    const responses = knowledgeBase[key];
+                    // Если это функция, вызываем ее с сообщением
+                    if (typeof responses[0] === 'function') {
+                        continue;
+                    }
+                    return responses[Math.floor(Math.random() * responses.length)];
+                }
+            }
+            
+            // Если команда не найдена
+            const now = Date.now();
+            if (now - lastMessageTime > 30000) { // 30 секунд
+                lastMessageTime = now;
+                return "Я не совсем понял ваш вопрос. Можете попробовать сказать 'помощь' для списка доступных команд.";
+            }
+            return "Извините, я не понял ваш вопрос. Можете переформулировать?";
+        }
+
+        // Функция для добавления сообщения в чат
+        function addMessageToChat(text, className) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', className);
+            messageElement.textContent = text;
+            
+            // Добавляем время сообщения
+            const timeElement = document.createElement('div');
+            timeElement.classList.add('time');
+            timeElement.textContent = new Date().toLocaleTimeString('ru-RU', {hour: '2-digit', minute:'2-digit'});
+            messageElement.appendChild(timeElement);
+            
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Показать индикатор набора
+        function showTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.classList.add('typing-indicator');
+            indicator.id = 'typing-indicator';
+            indicator.innerHTML = '<span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>';
+            chatContainer.appendChild(indicator);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Скрыть индикатор набора
+        function hideTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
             }
         }
+
+        // Обработчики событий
+        sendButton.addEventListener('click', () => {
+            const message = userInput.value.trim();
+            if (message) {
+                processUserInput(message);
+                userInput.value = '';
+            }
+        });
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                const message = userInput.value.trim();
+                if (message) {
+                    processUserInput(message);
+                    userInput.value = '';
+                }
+            }
+        });
+
+        // Обработчики быстрых команд
+        quickCommands.addEventListener('click', (e) => {
+            if (e.target.classList.contains('commands-btn')) {
+                const command = e.target.getAttribute('data-command');
+                processUserInput(command);
+            }
+        });
 
         // Инициализация при загрузке
         window.onload = function() {
             checkCompatibility();
-            loadChatHistory();
             
             setTimeout(() => {
-                const welcomeMsg = "Привет! Я голосовой помощник. Можете говорить со мной, нажав на микрофон.";
+                const welcomeMsg = "Привет! Я голосовой помощник. Можете говорить со мной, нажав на микрофон или используя быстрые команды выше.";
                 addMessageToChat(welcomeMsg, 'assistant-message');
                 speak(welcomeMsg);
             }, 800);
         };
 
-        // Обработчики событий
-        document.getElementById('send-button').addEventListener('click', sendMessage);
-        
-        document.getElementById('user-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+        // Сохраняем историю при закрытии страницы
+        window.addEventListener('beforeunload', () => {
+            const messages = document.querySelectorAll('.message');
+            const chatHistory = Array.from(messages).map(msg => ({
+                text: msg.textContent.replace(msg.querySelector('.time')?.textContent || '', '').trim(),
+                type: msg.classList.contains('user-message') ? 'user' : 'assistant',
+                time: msg.querySelector('.time')?.textContent || ''
+            }));
+            localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
         });
+
+        // Восстанавливаем историю при загрузке
+        const savedHistory = localStorage.getItem('chatHistory');
+        if (savedHistory) {
+            const chatHistory = JSON.parse(savedHistory);
+            chatHistory.forEach(msg => {
+                addMessageToChat(msg.text, msg.type === 'user' ? 'user-message' : 'assistant-message');
+            });
+        }
     </script>
 </body>
 </html>
